@@ -1,0 +1,56 @@
+version: "3"
+services:
+  postgres:
+    image: "postgres:latest"
+    environment:
+      - POSTGRES_PASSWORD=postgres_password
+  redis:
+    image: "redis:latest"
+  # 類似於domain 因此可以藉由server:5000來訪問
+  nginx:
+    # 因為不想要nginx停止，所以使用restart，讓他報錯時重新啟動
+    restart: always
+    depends_on:
+      - api
+      - client
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./nginx
+    ports:
+      - "3030:80"
+  api:
+    build:
+      # 不用指定文件夾名稱，只要指定哪一個Dockerfile就可以了
+      dockerfile: Dockerfile.dev
+      # 指定資料夾
+      context: ./server
+    volumes:
+      - /app/node_modules
+      - ./server:/app
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - PGUSER=postgres
+      - PGHOST=postgres
+      - PGDATABASE=postgres
+      - PGPASSWORD=postgres_password
+      - PGPORT=5432
+  client:
+    environment:
+      - WDS_SOCKET_PORT=0
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./client
+    volumes:
+      - /app/node_modules
+      - ./client:/app
+  worker:
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./worker
+    volumes:
+      - /app/node_modules
+      - ./worker:/app
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
